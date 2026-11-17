@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: learnsphere
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: learnsphere
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    env_file: ../.env
+    depends_on: [postgres, redis]
+    ports: ["4000:4000"]
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile.web }
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:4000
+    depends_on: [api]
+    ports: ["3000:3000"]
+  worker:
+    build: { context: .., dockerfile: deploy/Dockerfile.worker }
+    env_file: ../.env
+    depends_on: [redis]
+  recommender:
+    build: ../services/recommender
+    ports: ["8000:8000"]
+  media-service:
+    build: ../services/media-service
+    environment:
+      MEDIA_WORKERS: "4"
+    ports: ["8080:8080"]
+volumes:
+  pgdata:

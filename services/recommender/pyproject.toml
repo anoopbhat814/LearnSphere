@@ -1,0 +1,12 @@
+[project]
+name = "learnsphere-recommender"
+version = "1.0.0"
+description = "Course recommendation and content analysis service for LearnSphere"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

@@ -1,0 +1,21 @@
+{
+  "name": "learnsphere",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint . --ext .ts,.tsx,.js",
+    "db:seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": { "seed": "ts-node prisma/seed.ts" },
+  "devDependencies": {
+    "@prisma/client": "^5.10.0",
+    "eslint": "^8.57.0",
+    "prisma": "^5.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
