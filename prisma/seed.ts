@@ -1,4 +1,4 @@
-import { PrismaClient, Role, CourseLevel, CourseStatus, LessonType, QuestionType } from '@prisma/client';
+import { PrismaClient, Role, DiscountType, CourseLevel, CourseStatus, LessonType, QuestionType } from '@prisma/client';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -98,6 +98,52 @@ async function main() {
     update: {},
     create: { userId: student.id, courseId: course.id },
   });
+  const badges = [
+    ['first_course', 'First Course', 'Completed your first course'],
+    ['course_collector', 'Course Collector', 'Completed five courses'],
+    ['quiz_whiz', 'Quiz Whiz', 'Passed ten quizzes'],
+    ['hands_on', 'Hands-on', 'Had three assignments graded'],
+  ];
+  for (const [code, name, description] of badges) {
+    await prisma.badge.upsert({ where: { code }, update: {}, create: { code, name, description } });
+  }
+
+  await prisma.coupon.upsert({
+    where: { code: 'WELCOME20' },
+    update: {},
+    create: { code: 'WELCOME20', type: DiscountType.PERCENT, amount: 20, maxRedemptions: 500 },
+  });
+
+  await prisma.learningPath.upsert({
+    where: { slug: 'frontend-foundations' },
+    update: {},
+    create: {
+      slug: 'frontend-foundations',
+      title: 'Frontend Foundations',
+      description: 'A guided route from typed JavaScript to production web apps.',
+      published: true,
+      courses: { create: [{ courseId: course.id, position: 1 }] },
+    },
+  });
+
+  const startsAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+  await prisma.cohort.upsert({
+    where: { courseId_name: { courseId: course.id, name: 'Spring Cohort' } },
+    update: {},
+    create: { courseId: course.id, name: 'Spring Cohort', startsAt, capacity: 40 },
+  });
+
+  const lesson = await prisma.lesson.findFirst({ where: { module: { courseId: course.id } }, orderBy: { position: 'asc' } });
+  await prisma.assignment.create({
+    data: {
+      courseId: course.id,
+      lessonId: lesson?.id,
+      title: 'Typed utility library',
+      instructions: 'Write three generic helper functions and document their type signatures.',
+      dueAt: new Date(startsAt.getTime() + 14 * 24 * 3600 * 1000),
+    },
+  }).catch(() => undefined);
+
   console.log('Seeded course', course.slug);
 }
 

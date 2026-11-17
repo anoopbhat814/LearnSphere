@@ -65,6 +65,15 @@ model User {
   reviews       Review[]
   certificates  Certificate[]
   notifications Notification[]
+  cohorts       CohortMember[]
+  badges        UserBadge[]
+  submissions   Submission[]    @relation("SubmissionAuthor")
+  graded        Submission[]    @relation("SubmissionGrader")
+  bookmarks     Bookmark[]
+  payments      Payment[]
+  notes         Note[]
+  announcements Announcement[]
+  hostedSessions LiveSession[]
 
   @@index([role])
 }
@@ -113,6 +122,14 @@ model Course {
   reviews      Review[]
   threads      ForumThread[]
   certificates Certificate[]
+  cohorts      Cohort[]
+  pathCourses  LearningPathCourse[]
+  assignments  Assignment[]
+  bookmarks    Bookmark[]
+  coupons      Coupon[]
+  payments     Payment[]
+  liveSessions LiveSession[]
+  announcements Announcement[]
   publishedAt  DateTime?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
@@ -152,6 +169,9 @@ model Lesson {
   content         String?
   quiz            Quiz?
   progress        LessonProgress[]
+  assignments     Assignment[]
+  bookmarks       Bookmark[]
+  notes           Note[]
 
   @@unique([moduleId, position])
 }
@@ -302,4 +322,255 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, readAt])
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum LiveSessionStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELED
+}
+
+enum AnnouncementAudience {
+  COURSE
+  COHORT
+  ALL
+}
+
+model Cohort {
+  id        String         @id @default(cuid())
+  courseId  String
+  course    Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name      String
+  startsAt  DateTime
+  endsAt    DateTime?
+  capacity  Int?
+  members   CohortMember[]
+  announcements Announcement[]
+  liveSessions  LiveSession[]
+  createdAt DateTime       @default(now())
+
+  @@unique([courseId, name])
+  @@index([startsAt])
+  @@map("cohorts")
+}
+
+model CohortMember {
+  cohortId String
+  userId   String
+  cohort   Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@id([cohortId, userId])
+  @@index([userId])
+  @@map("cohort_members")
+}
+
+model LearningPath {
+  id          String               @id @default(cuid())
+  slug        String               @unique
+  title       String
+  description String
+  published   Boolean              @default(false)
+  courses     LearningPathCourse[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("learning_paths")
+}
+
+model LearningPathCourse {
+  pathId   String
+  courseId String
+  position Int
+  path     LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  course   Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([pathId, courseId])
+  @@unique([pathId, position])
+  @@map("learning_path_courses")
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  description String
+  iconUrl     String?
+  holders     UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  userId    String
+  badgeId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@id([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Assignment {
+  id          String       @id @default(cuid())
+  courseId    String
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId    String?
+  lesson      Lesson?      @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  title       String
+  instructions String
+  maxPoints   Int          @default(100)
+  dueAt       DateTime?
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+
+  @@index([courseId, dueAt])
+  @@map("assignments")
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User             @relation("SubmissionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  graderId     String?
+  grader       User?            @relation("SubmissionGrader", fields: [graderId], references: [id], onDelete: SetNull)
+  status       SubmissionStatus @default(DRAFT)
+  body         String?
+  attachmentUrl String?
+  score        Int?
+  feedback     String?
+  submittedAt  DateTime?
+  gradedAt     DateTime?
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, userId])
+  @@index([status])
+  @@map("submissions")
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId  String?
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId, lessonId])
+  @@index([userId, createdAt])
+  @@map("bookmarks")
+}
+
+model Coupon {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  type        DiscountType
+  amount      Int
+  courseId    String?
+  course      Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  maxRedemptions Int?
+  redeemed    Int          @default(0)
+  expiresAt   DateTime?
+  payments    Payment[]
+  createdAt   DateTime     @default(now())
+
+  @@map("coupons")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  courseId    String
+  course      Course        @relation(fields: [courseId], references: [id])
+  couponId    String?
+  coupon      Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  amountCents Int
+  currency    String        @default("USD")
+  status      PaymentStatus @default(PENDING)
+  providerRef String?       @unique
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+
+  @@index([userId, status])
+  @@index([courseId])
+  @@map("payments")
+}
+
+model LiveSession {
+  id          String            @id @default(cuid())
+  courseId    String
+  course      Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  cohortId    String?
+  cohort      Cohort?           @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  hostId      String
+  host        User              @relation(fields: [hostId], references: [id])
+  title       String
+  status      LiveSessionStatus @default(SCHEDULED)
+  startsAt    DateTime
+  durationMin Int               @default(60)
+  joinUrl     String?
+  recordingAssetId String?
+
+  @@index([courseId, startsAt])
+  @@map("live_sessions")
+}
+
+model Announcement {
+  id        String               @id @default(cuid())
+  authorId  String
+  author    User                 @relation(fields: [authorId], references: [id])
+  audience  AnnouncementAudience @default(COURSE)
+  courseId  String?
+  course    Course?              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  cohortId  String?
+  cohort    Cohort?              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  pinned    Boolean              @default(false)
+  publishedAt DateTime           @default(now())
+
+  @@index([courseId, publishedAt])
+  @@map("announcements")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  atSecond  Int      @default(0)
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, lessonId])
+  @@map("notes")
 }

@@ -20,7 +20,7 @@
 
 Online learning teams usually stitch together a video host, a quiz tool, a forum and a certificate generator. LearnSphere brings these into one platform: instructors publish structured courses (modules, lessons, quizzes), learners enroll and track progress, discuss in per-course forums, receive personalised recommendations, and earn verifiable certificates on completion.
 
-The system is a monorepo of focused components: a Next.js web app, a NestJS API backed by PostgreSQL and Redis, a Python recommendation service, a Go media transcoding service, and a background worker.
+The system is a monorepo of focused components: a Next.js web app, a NestJS API backed by PostgreSQL and Redis, a Python recommendation service, a small Go media transcoding side-service, and a background worker.
 
 ## Key features
 
@@ -87,7 +87,7 @@ LearnSphere/
 │   └── ui/                  # Shared React components
 ├── services/
 │   ├── recommender/         # Python FastAPI recommendation service
-│   └── media-service/       # Go video transcoding service
+│   └── media-service/       # Small Go side-service for video transcoding
 ├── prisma/                  # schema.prisma, migrations, seed script
 ├── deploy/                  # Dockerfiles, docker-compose.yml, nginx.conf
 ├── docs/                    # API, architecture, data model, deployment
@@ -191,6 +191,15 @@ All routes are served under the `/api` prefix. Full reference: [docs/api.md](doc
 | Forum | `GET /forum/threads/:id/posts` | List posts |
 | Forum | `POST /forum/threads/:id/posts` | Reply to a thread |
 | Forum | `POST /forum/posts/:id/vote` | Vote on a post |
+| Assignments | `POST /assignments/:id/submissions` | Submit or save a draft (`?draft=true`) |
+| Assignments | `POST /assignments/submissions/:id/grade` | Grade a submission (instructor) |
+| Payments | `POST /payments/checkout` | Start checkout, optionally with `couponCode` |
+| Cohorts | `POST /cohorts/:id/join` | Join a cohort |
+| Learning paths | `GET /learning-paths/:slug/progress` | Progress through a path |
+| Live sessions | `PATCH /live-sessions/:id/status` | Start, end or cancel a session |
+| Announcements | `POST /announcements` | Publish to a course, cohort or everyone |
+| Study | `POST /study/bookmarks/toggle` | Toggle a bookmark |
+| Badges | `POST /badges/evaluate` | Award newly earned badges |
 | Recommendations | `GET /recommendations` | Personalised course suggestions |
 
 Supporting services:
@@ -209,7 +218,11 @@ Defined in [prisma/schema.prisma](prisma/schema.prisma); see [docs/data-model.md
 - **Curriculum**: `Module`, `Lesson`, `Quiz`, `Question`, `Option`
 - **Learning activity**: `Enrollment`, `LessonProgress`, `QuizAttempt`, `Certificate`
 - **Community**: `ForumThread`, `ForumPost`, `PostVote`
-- **Messaging**: `Notification`
+- **Cohorts and paths**: `Cohort`, `CohortMember`, `LearningPath`, `LearningPathCourse`
+- **Coursework**: `Assignment`, `Submission`, `Note`, `Bookmark`
+- **Gamification**: `Badge`, `UserBadge`
+- **Commerce**: `Coupon`, `Payment`
+- **Live and messaging**: `LiveSession`, `Announcement`, `Notification`
 
 ## Testing
 
